@@ -21,8 +21,8 @@ Bot de WhatsApp para gerenciamento de pedidos de espetinhos, com dashboard para 
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/seu-usuario/espetinhos-bot.git
-cd espetinhos-bot
+git clone https://github.com/marcosgomes068/sitemlanche.git
+cd sitemlanche
 ```
 
 2. Instale as dependências:
