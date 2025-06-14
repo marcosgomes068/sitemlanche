@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Pedidos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .pedido-card {
+            transition: all 0.3s ease;
+        }
+        .pedido-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            font-size: 0.9em;
+            padding: 5px 10px;
+        }
+        .btn-action {
+            margin: 2px;
+            font-size: 0.9em;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-utensils me-2"></i>
+                Dashboard de Pedidos
+            </a>
+            <div class="d-flex">
+                <span class="navbar-text me-3">
+                    <i class="fas fa-clock me-1"></i>
+                    <span id="lastUpdate">Última atualização: -</span>
+                </span>
+                <button class="btn btn-light btn-sm" onclick="atualizarPedidos()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total de Pedidos</h5>
+                        <h2 id="totalPedidos">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Pedidos na Última Hora</h5>
+                        <h2 id="pedidosUltimaHora">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Em Preparo</h5>
+                        <h2 id="emPreparo">0</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Em Entrega</h5>
+                        <h2 id="emEntrega">0</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" id="pedidosContainer">
+            <!-- Os cards de pedidos serão inseridos aqui -->
+        </div>
+    </div>
+
+    <button class="btn btn-primary btn-lg rounded-circle refresh-btn" onclick="atualizarPedidos()">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+
+    <script>
+        // Função para formatar data
+        function formatarData(timestamp) {
+            const data = new Date(timestamp);
+            return data.toLocaleString('pt-BR');
+        }
+
+        // Função para atualizar o status do pedido
+        async function atualizarStatus(codigo, numero, novoStatus) {
+            try {
+                const response = await fetch('/api/pedido/status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        codigo,
+                        numero,
+                        status: novoStatus
+                    })
+                });
+
+                if (response.ok) {
+                    atualizarPedidos();
+                } else {
+                    alert('Erro ao atualizar status do pedido');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao atualizar status do pedido');
+            }
+        }
+
+        // Função para criar o card do pedido
+        function criarCardPedido(pedido) {
+            console.log('Criando card para pedido:', pedido);
+            const statusClasses = {
+                'iniciado': 'bg-secondary',
+                'confirmado': 'bg-primary',
+                'em_preparo': 'bg-warning',
+                'pronto': 'bg-info',
+                'em_entrega': 'bg-primary',
+                'entregue': 'bg-success',
+                'cancelado': 'bg-danger',
+                'finalizado': 'bg-dark'
+            };
+
+            const statusTextos = {
+                'iniciado': 'Iniciado',
+                'confirmado': 'Confirmado',
+                'em_preparo': 'Em Preparo',
+                'pronto': 'Pronto',
+                'em_entrega': 'Em Entrega',
+                'entregue': 'Entregue',
+                'cancelado': 'Cancelado',
+                'finalizado': 'Finalizado'
+            };
+
+            return `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card pedido-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Pedido ${pedido.codigo}</h5>
+                            <span class="badge ${statusClasses[pedido.status]} status-badge">
+                                ${statusTextos[pedido.status]}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">
+                                <strong>Número:</strong> ${pedido.numero}<br>
+                                <strong>Mensagem:</strong><br>
+                                ${pedido.mensagem}
+                            </p>
+                            <p class="timestamp">
+                                <i class="fas fa-clock"></i> ${formatarData(pedido.timestamp)}
+                            </p>
+                            <div class="d-flex justify-content-between">
+                                ${pedido.status === 'confirmado' ? `
+                                    <button class="btn btn-warning btn-action" onclick="atualizarStatus('${pedido.codigo}', '${pedido.numero}', 'em_preparo')">
+                                        <i class="fas fa-fire"></i> Em Preparo
+                                    </button>
+                                ` : ''}
+                                ${pedido.status === 'em_preparo' ? `
+                                    <button class="btn btn-info btn-action" onclick="atualizarStatus('${pedido.codigo}', '${pedido.numero}', 'pronto')">
+                                        <i class="fas fa-check"></i> Pronto
+                                    </button>
+                                ` : ''}
+                                ${pedido.status === 'pronto' ? `
+                                    <button class="btn btn-primary btn-action" onclick="atualizarStatus('${pedido.codigo}', '${pedido.numero}', 'em_entrega')">
+                                        <i class="fas fa-motorcycle"></i> Entregador Saiu
+                                    </button>
+                                ` : ''}
+                                ${pedido.status === 'em_entrega' ? `
+                                    <button class="btn btn-success btn-action" onclick="atualizarStatus('${pedido.codigo}', '${pedido.numero}', 'entregue')">
+                                        <i class="fas fa-flag-checkered"></i> Pedido Entregue
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Função para atualizar as estatísticas
+        function atualizarEstatisticas(stats) {
+            document.getElementById('totalPedidos').textContent = stats.total_pedidos;
+            document.getElementById('pedidosUltimaHora').textContent = stats.ultima_hora;
+            document.getElementById('emPreparo').textContent = stats.por_status.em_preparo || 0;
+            document.getElementById('emEntrega').textContent = stats.por_status.em_entrega || 0;
+        }
+
+        // Função para atualizar os pedidos
+        async function atualizarPedidos() {
+            try {
+                console.log('Atualizando pedidos...');
+                
+                // Primeiro, tenta buscar os pedidos
+                const pedidosResponse = await fetch('/api/pedidos', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Resposta da API de pedidos:', pedidosResponse);
+                
+                if (!pedidosResponse.ok) {
+                    throw new Error(`Erro ao buscar pedidos: ${pedidosResponse.status}`);
+                }
+                
+                const pedidosData = await pedidosResponse.json();
+                console.log('Dados dos pedidos:', pedidosData);
+                
+                if (!pedidosData.success) {
+                    throw new Error('Erro na resposta da API de pedidos');
+                }
+                
+                // Depois, busca as estatísticas
+                const statsResponse = await fetch('/api/stats', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Resposta da API de estatísticas:', statsResponse);
+                
+                if (!statsResponse.ok) {
+                    throw new Error(`Erro ao buscar estatísticas: ${statsResponse.status}`);
+                }
+                
+                const statsData = await statsResponse.json();
+                console.log('Dados das estatísticas:', statsData);
+                
+                if (!statsData.success) {
+                    throw new Error('Erro na resposta da API de estatísticas');
+                }
+
+                const container = document.getElementById('pedidosContainer');
+                container.innerHTML = '';
+
+                // Filtra apenas pedidos não finalizados
+                const pedidosAtivos = pedidosData.pedidos.filter(p => 
+                    !['entregue', 'cancelado', 'finalizado'].includes(p.status)
+                );
+
+                console.log('Pedidos ativos:', pedidosAtivos);
+
+                if (pedidosAtivos.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-12 text-center">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Nenhum pedido ativo no momento.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    pedidosAtivos.forEach(pedido => {
+                        container.innerHTML += criarCardPedido(pedido);
+                    });
+                }
+
+                atualizarEstatisticas(statsData.stats);
+                document.getElementById('lastUpdate').textContent = 
+                    `Última atualização: ${formatarData(Date.now())}`;
+            } catch (error) {
+                console.error('Erro ao atualizar pedidos:', error);
+                const container = document.getElementById('pedidosContainer');
+                container.innerHTML = `
+                    <div class="col-12 text-center">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i>
+                            Erro ao carregar pedidos: ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Atualiza os pedidos a cada 30 segundos
+        setInterval(atualizarPedidos, 30000);
+
+        // Carrega os pedidos ao iniciar
+        document.addEventListener('DOMContentLoaded', atualizarPedidos);
+    </script>
+</body>
+</html> 
